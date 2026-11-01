@@ -132,6 +132,22 @@ if any line has a ❌, copy the whole message, paste it back to claude and say "
 
 from your second reel on, it's just steps 7.1 to 7.3, then 7.5 to 7.8. your brand is saved, so every edit already looks like you.
 
+## make a cover (optional)
+
+the **cover** tab on your review page opens the thumbnail studio. that's where you make the picture people see on your profile grid. it runs on your mac, so your footage stays on your mac.
+
+1. on the review page, open the **cover** tab and click **open thumbnail studio**. it opens in a new browser tab.
+2. pick a frame. you get six frames spaced evenly through your video. nothing's ranked or picked by ai, you choose the face you like. use the slider or the **1 frame** buttons to land on the exact moment.
+3. want different footage? pick it at the top: the raw clip, the clean master (colour fixed, no captions) or the final reel.
+4. type your headline. press **return** to start a new line. long headlines shrink and wrap so they always fit.
+5. choose the font, size, colour and how high it sits. your brand fonts and colours are already there. then pick a style: **soft shadow**, **cream panel** or **dark fade**.
+6. tick the **3:4** or **square** crop guides to see what your profile grid will show. they never end up in your download.
+7. click a download button. you get a png in your downloads folder: **1080×1920** for the reel cover, **1080×1440** for the 3:4 grid, or **1080×1080** square.
+
+everything saves as you go, so it opens how you left it.
+
+**closed it, or restarted your mac?** the studio stops when your mac restarts. type **open my thumbnail studio** in claude code and it starts it again.
+
 ## want the capcut version too? (optional)
 
 capcut gives you an editable version where every caption and sound effect is its own layer, so you can change those yourself after. the graphics, screenshots and hook title come baked into the video, so change those on the review page before you build.
@@ -153,6 +169,16 @@ capcut gives you an editable version where every caption and sound effect is its
 
 if you'd like to understand how this works or build your own version, read [build it yourself](BUILD-IT-YOURSELF.md). it has the prompts i used, in order.
 
+## getting updates
+
+i add fixes and new features as people use this. to get the latest version, paste this into claude code and press **return**:
+
+```
+update the reel editor from github.com/nicolapocock/claude-reel-editor to the latest version, then run its doctor check. keep my brand files in ~/reels as they are.
+```
+
+your brand lives in its own folder, so updating never changes your colours, fonts or style. want to hear about updates? on the repo page, click **watch**, then **custom**, then tick **releases**.
+
 ## if something goes wrong
 
 | what you see | what to do |
@@ -164,6 +190,8 @@ if you'd like to understand how this works or build your own version, read [buil
 | capcut won't connect | if you're in the us or india, that's capcut's region block and there's nothing to fix. anywhere else, ask claude to log you in to capcut again |
 | the review page won't load | open it from the link claude gave you, signed in to your claude.ai account |
 | the rough cut won't play | press play rough cut once more (browsers sometimes block the first play). if it still won't, reload the page |
+| the thumbnail studio says it can't connect | it stops when your mac restarts. type **open my thumbnail studio** in claude code |
+| the thumbnail studio can't play your raw clip | some iphone videos only play in safari. pick the clean master instead, or open the studio in safari |
 | the edit looks off-brand | tell claude what's wrong ("captions are too small", "never use that font"). it adds it to your brand rules so it doesn't happen again |
 | your mac is slow or out of space | you need about 10 GB free. 4k needs 35+ GB, so stick to 1080p if your mac is older |
 

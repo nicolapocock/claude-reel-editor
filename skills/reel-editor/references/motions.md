@@ -25,5 +25,4 @@ Add more from the 392-item catalog: `cd engine/hf && npx hyperframes add <name>`
 | x-follow-card | fits box | follow CTA (X) | none (text is in the file) |
 | instagram-follow | 1080x1920 | follow CTA at the end | none (text is in the file) |
 | mk-line-graph | 1920x1080 | growth over time | none (text is in the file) |
-| nyc-paris-flight | 1920x1080 | travel / map moments (example route, hardcoded) | none (text is in the file) |
 | yt-comment-card | 1920x1080 | a comment you're replying to | none (text is in the file) |

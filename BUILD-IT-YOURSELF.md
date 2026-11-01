@@ -80,7 +80,7 @@ turn everything we built into a claude code skill with a SKILL.md, so next time 
 
 ## mistakes i made so you don't have to
 
-- **rendering everything on your laptop at 4K.** preview at 1080p and only render 4K for the final. use two render workers, not all of them.
+- **rendering bigger than instagram shows.** instagram caps reels at 1080x1920, so anything bigger only made my renders slower. render at 1080p and use two render workers, not all of them.
 - **sound effects you can't hear.** generated sounds came out about 20 dB quieter than my voice. measure them; don't trust your ears on laptop speakers.
 - **"um"s hiding in the transcript.** whisper (the free transcriber) leaves them out. telling it to expect "um, uh" in a prompt makes it write them down so they can be cut.
 - **a fixed silence level.** outdoors, the background never goes quiet enough, so nothing gets cut. set the silence level just above each clip's own background noise.

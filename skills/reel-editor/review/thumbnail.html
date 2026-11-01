@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Thumbnail Studio</title>
+<style>
+/* layout: the cover preview (phone-shaped) on the left, controls on the right; stacks at phone width */
+:root{
+  --bg:#FFF8FB; --surface:#FFFFFF; --ink:#141414; --muted:#6E5A63; --line:#F3D3E1;
+  --pink:#ED84B0; --pink-soft:#FFEEF5; --drop:#B4234F; --keep:#2F7D5B;
+  --f-body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; --f-mono:ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161013;--surface:#21181C;--ink:#FFEEF5;--muted:#C9A9B7;--line:#3A2A31;--pink-soft:#2C1D24;--drop:#FF7A9C;--keep:#6FCF9F;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#161013;--surface:#21181C;--ink:#FFEEF5;--muted:#C9A9B7;--line:#3A2A31;--pink-soft:#2C1D24;--drop:#FF7A9C;--keep:#6FCF9F;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--f-body)}
+.wrap{max-width:1180px;margin:0 auto;padding:16px 16px 80px;display:grid;grid-template-columns:minmax(0,400px) minmax(0,1fr);gap:32px;align-items:start}
+@media (max-width:820px){.wrap{grid-template-columns:minmax(0,1fr)}}
+.side{position:sticky;top:12px;display:flex;flex-direction:column;gap:10px}
+@media (max-width:820px){.side{position:static}}
+h1{font-size:30px;line-height:1.1;margin:0;color:var(--pink);letter-spacing:-.5px}
+.sub{margin:0;color:var(--muted);font-size:14px}
+.stage{position:relative;width:100%;max-width:400px;margin-inline:auto;aspect-ratio:9/16;border-radius:20px;overflow:hidden;background:#111;border:4px solid var(--surface);box-shadow:0 8px 24px rgba(0,0,0,.14)}
+@media (max-width:820px){.stage{max-width:300px}}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+/* crop guides are page elements over the canvas, so they can never end up in an exported PNG */
+.guide{position:absolute;left:0;right:0;border-block:3px dashed rgba(255,255,255,.9);box-shadow:0 0 0 1px rgba(0,0,0,.25);pointer-events:none}
+.guide span{position:absolute;right:6px;top:4px;font:700 11px var(--f-body);color:#fff;background:rgba(20,20,20,.6);border-radius:6px;padding:1px 6px}
+#gTall{top:12.5%;height:75%}
+#gSquare{top:21.875%;height:56.25%}
+#gSquare span{top:auto;bottom:4px}
+.status{font-size:14px;margin:0;min-height:1.5em}
+.status.err{color:var(--drop);font-weight:600}
+main{display:flex;flex-direction:column;gap:22px;min-width:0}
+fieldset{border:2px solid var(--line);border-radius:16px;padding:14px 16px;margin:0;background:var(--surface);min-width:0}
+legend{font-weight:800;padding:0 6px}
+.lede{margin:0 0 10px;color:var(--muted);font-size:14px}
+label{display:block;font-weight:700;font-size:14px;margin-top:10px}
+select,textarea,input[type=text]{display:block;width:100%;margin-top:6px;font:inherit;font-size:16px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--ink);padding:8px 10px}
+textarea{min-height:90px;resize:vertical}
+input[type=range]{width:100%;accent-color:var(--pink);margin-top:6px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row>label{flex:1;min-width:160px}
+.tc{font:500 13px var(--f-mono);font-variant-numeric:tabular-nums;color:var(--muted)}
+button,.btn{font:inherit;font-weight:700;font-size:14px;border-radius:999px;padding:7px 14px;border:2px solid var(--pink);background:var(--surface);color:var(--ink);cursor:pointer}
+button.primary{background:var(--pink);color:#141414}
+button.quiet{border-color:var(--line);font-weight:600}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,select:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
+#samples{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+@media (max-width:520px){#samples{grid-template-columns:repeat(3,minmax(0,1fr))}}
+#samples button{padding:0;border-radius:10px;overflow:hidden;border-width:2px;border-color:var(--line);background:#111;display:flex;flex-direction:column}
+#samples button[aria-pressed="true"]{border-color:var(--pink)}
+#samples img{width:100%;aspect-ratio:9/16;object-fit:cover;display:block}
+#samples span{font:500 11px var(--f-mono);color:#fff;padding:2px 0}
+.swatches{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px}
+.sw{width:34px;height:34px;border-radius:50%;padding:0;border:3px solid var(--line)}
+.sw[aria-pressed="true"]{border-color:var(--ink)}
+input[type=color]{width:44px;height:34px;border:2px solid var(--line);border-radius:10px;background:var(--surface);padding:2px}
+.seg{display:inline-flex;border:2px solid var(--line);border-radius:999px;overflow:hidden;flex-wrap:wrap;margin-top:6px}
+.seg button{border:0;border-radius:0;font-weight:700;color:var(--muted);background:none}
+.seg button[aria-pressed="true"]{background:var(--pink);color:#141414}
+.check{display:flex;gap:8px;align-items:center;font-weight:600;margin-top:6px}
+.check input{width:18px;height:18px;accent-color:var(--pink)}
+.empty{padding:16px;border:2px dashed var(--line);border-radius:16px;color:var(--muted)}
+.empty a{color:var(--ink);font-weight:700}
+</style>
+
+<div class="wrap">
+  <aside class="side">
+    <h1>thumbnail studio</h1>
+    <p class="sub" id="reelname">Loading…</p>
+    <div class="stage">
+      <canvas id="cover" width="1080" height="1920" aria-label="Cover preview"></canvas>
+      <div class="guide" id="gTall" hidden><span>3:4</span></div>
+      <div class="guide" id="gSquare" hidden><span>square</span></div>
+    </div>
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+  </aside>
+  <main id="controls" hidden>
+    <fieldset>
+      <legend>Frame</legend>
+      <label for="source">Footage</label>
+      <select id="source"></select>
+      <p class="lede" style="margin-top:12px">Six sampled frames, evenly spaced through the video. Nothing is ranked or picked by AI. You choose the expression.</p>
+      <div id="samples"></div>
+      <label for="seek">Exact frame <span class="tc" id="time">0:00.00</span></label>
+      <input type="range" id="seek" min="0" max="1" step="0.0333" value="0">
+      <div class="row" style="margin-top:6px">
+        <button class="quiet" id="prev" type="button" aria-label="Back one frame">◀ 1 frame</button>
+        <button class="quiet" id="next" type="button" aria-label="Forward one frame">1 frame ▶</button>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Headline</legend>
+      <label for="headline">Text <span class="sub" style="display:inline">(press Return for a new line)</span></label>
+      <textarea id="headline" maxlength="200" placeholder="Type your headline"></textarea>
+      <div class="row">
+        <label for="font">Font<select id="font"></select></label>
+        <label for="size">Text size <span class="tc" id="sizeval"></span><input type="range" id="size" min="40" max="220" step="2"></label>
+      </div>
+      <label>Colour</label>
+      <div class="swatches" id="swatches"><input type="color" id="color" aria-label="Pick any colour"></div>
+      <label for="y">Up or down <span class="sub" style="display:inline">(it always stays inside the frame)</span></label>
+      <input type="range" id="y" min="0" max="1920" step="10">
+      <label>Style</label>
+      <div class="seg" role="group" aria-label="Headline style" id="style">
+        <button type="button" data-v="shadow">Soft shadow</button><button type="button" data-v="panel">Cream panel</button><button type="button" data-v="fade">Dark fade</button>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Crop guides</legend>
+      <p class="lede">Instagram's grid shows your cover cropped. Turn these on to keep your face and words inside. They never show in your downloads.</p>
+      <label class="check"><input type="checkbox" id="gtall"> 3:4 crop (profile grid)</label>
+      <label class="check"><input type="checkbox" id="gsquare"> Square crop</label>
+    </fieldset>
+    <fieldset>
+      <legend>Download</legend>
+      <p class="lede">PNG files, saved to your Downloads folder.</p>
+      <div class="row">
+        <button class="primary export" type="button" data-h="1920">Full cover 1080×1920</button>
+        <button class="export" type="button" data-h="1440">3:4 1080×1440</button>
+        <button class="export" type="button" data-h="1080">Square 1080×1080</button>
+      </div>
+    </fieldset>
+    <p class="sub">Your choices save with this reel as you go, so it opens how you left it. Closed this tab? Ask Claude to "open my thumbnail studio".</p>
+  </main>
+</div>
+<video id="video" muted playsinline preload="auto" hidden></video>
+<video id="sampler" muted playsinline preload="auto" hidden></video>
+
+<script>
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const video = $("#video"), sampler = $("#sampler"), cv = $("#cover"), ctx = cv.getContext("2d");
+const W = 1080, H = 1920, MARGIN = 96, MAXW = 900, LH = 1.08;
+const REEL = new URLSearchParams(location.search).get("reel") || "";
+const SYSTEM = { label: "System sans (always works)", css: 'system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif', weight: 800, style: "normal" };
+const FONTS = { system: SYSTEM };
+let C = null, S = null, ready = false, timer = null, note = "", gen = 0, fps = 30;   // gen: bumps when the footage changes, so older sampling stops   // note: a font or footage that couldn't be used, shown with the ready message
+const fmt = t => `${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStart(5, "0")}`;
+const say = (t, err) => { $("#status").textContent = t; $("#status").classList.toggle("err", !!err); };
+const media = f => `/media?reel=${encodeURIComponent(REEL)}&file=${encodeURIComponent(f)}`;
+
+// ---------- drawing ----------
+function coverFit(c, v, w, h) { const k = Math.max(w / v.videoWidth, h / v.videoHeight); c.drawImage(v, (w - v.videoWidth * k) / 2, (h - v.videoHeight * k) / 2, v.videoWidth * k, v.videoHeight * k); }
+function wrap(text, maxW) {   // manual line breaks first, then words; a single word wider than the frame breaks by letter
+  const lines = [];
+  for (const para of text.split("\n")) {
+    let line = "";
+    for (let word of para.split(" ")) {
+      while (ctx.measureText(word).width > maxW && word.length > 1) {
+        let k = 1; while (k < word.length - 1 && ctx.measureText(word.slice(0, k + 1)).width <= maxW) k++;
+        if (line) { lines.push(line); line = ""; }
+        lines.push(word.slice(0, k)); word = word.slice(k);
+      }
+      const t = line ? line + " " + word : word;
+      if (line && ctx.measureText(t).width > maxW) { lines.push(line); line = word; } else line = t;
+    }
+    lines.push(line);
+  }
+  return lines;
+}
+function layout() {   // shrink the type until the whole headline fits inside the frame, then keep it on screen
+  const f = FONTS[S.font] || SYSTEM, pad = S.style === "panel" ? 44 : 0;
+  let size = S.size, lines;
+  for (;;) {
+    ctx.font = `${f.style} ${f.weight} ${size}px ${f.css}`;
+    lines = wrap(S.headline, MAXW - 2 * pad);
+    if (lines.length * size * LH + 2 * pad <= H - 2 * MARGIN || size <= 24) break;
+    size = Math.max(24, Math.floor(size * 0.94));
+  }
+  const bh = lines.length * size * LH + 2 * pad;
+  const cy = Math.min(Math.max(S.y, MARGIN + bh / 2), H - MARGIN - bh / 2);
+  const widest = Math.max(0, ...lines.map(l => ctx.measureText(l).width));
+  return window.coverLayout = { lines, size, pad, top: cy - bh / 2, bottom: cy + bh / 2, widest, font: ctx.font };
+}
+function draw() {
+  ctx.fillStyle = "#111"; ctx.fillRect(0, 0, W, H);
+  if (ready && video.videoWidth) coverFit(ctx, video, W, H);
+  if (!S || !S.headline.trim()) return;
+  const L = layout();
+  if (S.style === "fade") {   // darken from the headline out to the nearest edge
+    const down = (L.top + L.bottom) / 2 > H / 2, g = down ? ctx.createLinearGradient(0, L.top - 260, 0, H) : ctx.createLinearGradient(0, L.bottom + 260, 0, 0);
+    g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(0.45, "rgba(0,0,0,.55)"); g.addColorStop(1, "rgba(0,0,0,.75)");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+  if (S.style === "panel") {
+    const pw = Math.min(W - 2 * 40, L.widest + 2 * L.pad + 20);
+    ctx.fillStyle = "#FFF7EC"; ctx.beginPath(); ctx.roundRect((W - pw) / 2, L.top, pw, L.bottom - L.top, 36); ctx.fill();
+  }
+  ctx.font = L.font; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = S.color;
+  if (S.style === "shadow") { ctx.shadowColor = "rgba(0,0,0,.5)"; ctx.shadowBlur = L.size * 0.3; ctx.shadowOffsetY = L.size * 0.06; }
+  L.lines.forEach((l, i) => ctx.fillText(l, W / 2, L.top + L.pad + (i + 0.5) * L.size * LH));
+  ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+}
+
+// ---------- frames: seeking (latest request wins) and the six sampled frames ----------
+function waitSeek(v, t) {
+  return new Promise((ok, fail) => {
+    const done = () => { clearTimeout(tm); v.removeEventListener("seeked", done); v.removeEventListener("emptied", done); ok(); };
+    const tm = setTimeout(() => { v.removeEventListener("seeked", done); fail(new Error("That frame took too long to load. Try another spot.")); }, 15000);
+    v.addEventListener("seeked", done); v.addEventListener("emptied", done); v.currentTime = t;   // emptied: the footage changed
+  });
+}
+let want = null, seeking = false;
+async function seek(t, persist = true) {
+  want = Math.max(0, Math.min(t, (video.duration || 0) - 0.01)); showTime(want);
+  if (seeking) return; seeking = true;
+  try {
+    while (want !== null) { const t2 = want; want = null; await waitSeek(video, t2); }
+    if (!ready) return;   // the footage changed mid-seek; the new footage's own seek takes over
+    draw(); video.requestVideoFrameCallback?.(() => draw());   // some browsers present the new frame just after "seeked"
+    S.time = +video.currentTime.toFixed(3); if (persist) save(); markSample(); }
+  catch (e) { say(e.message, true); }
+  finally { seeking = false; }
+}
+function showTime(t) { $("#seek").value = t; $("#time").textContent = fmt(t); }
+async function sampleFrames() {
+  const g = gen, box = $("#samples"); box.textContent = "";
+  sampler.src = video.currentSrc;
+  try {
+    await new Promise((ok, fail) => { sampler.onloadeddata = ok; sampler.onerror = () => fail(new Error("Couldn't sample frames from this footage.")); });
+    const d = sampler.duration;
+    for (let i = 0; i < 6; i++) {
+      const t = +(d * (i + 1) / 7).toFixed(3);   // evenly spaced, skipping the very start and end
+      await waitSeek(sampler, t);
+      if (g !== gen) return;   // they switched footage; the new footage samples itself
+      const c = document.createElement("canvas"); c.width = 180; c.height = 320; coverFit(c.getContext("2d"), sampler, 180, 320);
+      const b = document.createElement("button"); b.type = "button"; b.dataset.t = t; b.setAttribute("aria-pressed", "false");
+      const img = new Image(); img.src = c.toDataURL("image/jpeg", 0.8); img.alt = "Sampled frame at " + fmt(t);
+      const cap = document.createElement("span"); cap.textContent = fmt(t);
+      b.append(img, cap); b.addEventListener("click", () => seek(t)); box.appendChild(b);
+    }
+    markSample();
+  } catch (e) { if (g !== gen) return; box.innerHTML = `<div class="empty"></div>`; box.firstChild.textContent = e.message; }
+  sampler.removeAttribute("src"); sampler.load();
+}
+function markSample() { $$("#samples button").forEach(b => b.setAttribute("aria-pressed", Math.abs(+b.dataset.t - video.currentTime) < 0.02)); }
+
+function loadSource(file, t) {
+  ready = false; gen++; want = null; $("#samples").textContent = ""; say("Loading " + file + "…");
+  fps = C.sources.find(s => s.file === file)?.fps || 30;
+  video.onloadeddata = async () => {
+    if (!video.videoWidth) return fail();
+    ready = true; $("#seek").max = Math.max(0, video.duration - 0.01).toFixed(3);
+    await seek(Math.min(t || 0, video.duration), false);
+    say(note + "Pick a frame, add your headline, then download.");
+    sampleFrames();
+  };
+  const fail = () => {
+    ready = false; draw(); $("#samples").textContent = "";
+    const e = video.error?.code;
+    say(e === 2 ? "Lost the connection to the studio. Is it still running? Ask Claude to open it again."
+      : `This browser can't play ${file}. iPhone .mov files sometimes only play in Safari. Pick other footage above, open this page in Safari, or ask Claude for an H.264 copy.`, true);
+  };
+  video.onerror = fail;
+  video.src = media(file);
+}
+
+// ---------- settings: every change saves to <reel>/thumbnail.json ----------
+function save() {
+  clearTimeout(timer);
+  timer = setTimeout(async () => {
+    try {
+      const r = await fetch(`/api/settings?reel=${encodeURIComponent(REEL)}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(S) });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.status);
+      $("#status").dataset.saved = Date.now();
+    } catch (e) { say("Couldn't save your settings (" + e.message + "). Is the studio still running?", true); }
+  }, 400);
+}
+function set(k, v) { S[k] = v; sync(); draw(); save(); }
+function sync() {   // controls show the current settings
+  $("#headline").value = S.headline; $("#font").value = S.font; $("#size").value = S.size; $("#sizeval").textContent = S.size + " px";
+  $("#y").value = S.y; $("#color").value = S.color.toLowerCase(); $("#gtall").checked = S.guides.tall; $("#gsquare").checked = S.guides.square;
+  $("#gTall").hidden = !S.guides.tall; $("#gSquare").hidden = !S.guides.square;
+  $$("#style button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === S.style));
+  $$(".sw").forEach(b => b.setAttribute("aria-pressed", b.dataset.c.toLowerCase() === S.color.toLowerCase()));
+}
+$("#headline").addEventListener("input", e => set("headline", e.target.value));
+$("#font").addEventListener("change", e => set("font", e.target.value));
+$("#size").addEventListener("input", e => set("size", +e.target.value));
+$("#y").addEventListener("input", e => set("y", +e.target.value));
+$("#color").addEventListener("input", e => set("color", e.target.value));
+$$("#style button").forEach(b => b.addEventListener("click", () => set("style", b.dataset.v)));
+$("#gtall").addEventListener("change", e => set("guides", { ...S.guides, tall: e.target.checked }));
+$("#gsquare").addEventListener("change", e => set("guides", { ...S.guides, square: e.target.checked }));
+$("#seek").addEventListener("input", e => seek(+e.target.value));
+$("#prev").addEventListener("click", () => ready && seek(video.currentTime - 1 / fps));
+$("#next").addEventListener("click", () => ready && seek(video.currentTime + 1 / fps));
+$("#source").addEventListener("change", e => { S.source = e.target.value; save(); loadSource(S.source, S.time); });
+
+// ---------- export: crops of the cover canvas, which never has guides on it ----------
+$$(".export").forEach(b => b.addEventListener("click", () => {
+  if (!ready) return say("Load some footage first.", true);
+  draw();
+  const h = +b.dataset.h, out = document.createElement("canvas"); out.width = W; out.height = h;
+  out.getContext("2d").drawImage(cv, 0, (H - h) / 2, W, h, 0, 0, W, h);
+  out.toBlob(blob => {
+    if (!blob) return say("The download failed. Try again.", true);
+    const a = document.createElement("a"), name = `${C.name}-cover-${W}x${h}.png`;
+    a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    say(`Downloaded ${name}.`);
+  }, "image/png");
+}));
+
+// ---------- load ----------
+async function brandFonts() {   // the brand's fonts from brand.json; any that fail fall back to system sans
+  const failed = [];
+  for (const f of C.fonts) {
+    const fam = "brand-" + f.role;
+    try {
+      const face = new FontFace(fam, `url(${JSON.stringify(f.url)})`, { weight: String(f.weight), style: f.style });
+      await face.load(); document.fonts.add(face);
+      FONTS[f.role] = { label: `${f.family} (${f.role})`, css: `"${fam}",${SYSTEM.css}`, weight: f.weight, style: f.style };
+    } catch { failed.push(f.family); }
+  }
+  for (const [k, f] of Object.entries(FONTS)) $("#font").add(new Option(f.label, k));
+  return failed;
+}
+async function pickReel() {
+  const { reels } = await (await fetch("/api/reels")).json();
+  $("#reelname").textContent = "Choose a reel";
+  const box = document.createElement("div"); box.className = "empty";
+  box.textContent = reels.length ? "Which reel is this cover for? " : "No reels with footage yet. Add a raw clip to a reel folder first.";
+  for (const n of reels) { const a = document.createElement("a"); a.href = "?reel=" + encodeURIComponent(n); a.textContent = n; box.append(document.createElement("br"), a); }
+  $(".side").appendChild(box);
+}
+(async () => {
+  try {
+    if (!REEL) return pickReel();
+    const r = await fetch(`/api/reel?reel=${encodeURIComponent(REEL)}`); C = await r.json();
+    if (!r.ok) { $("#reelname").textContent = REEL; draw(); return say(C.error + ". Check the reel name, or ask Claude to open the studio for this reel.", true); }
+    $("#reelname").textContent = C.name;
+    if (!C.sources.length) { draw(); return say("No footage in this reel folder yet. Add your raw clip as raw.mov or raw.mp4 (or finish the cut so master.mp4 exists), then reload.", true); }
+    const failed = await brandFonts();
+    for (const s of C.sources) $("#source").add(new Option(`${s.label} (${s.file})`, s.file));
+    const colours = [...new Set([...Object.values(C.colors || {}), "#FFFFFF", "#141414"].map(c => String(c).toUpperCase()).filter(c => /^#[0-9A-F]{6}$/.test(c)))];
+    for (const c of colours) {
+      const b = document.createElement("button"); b.type = "button"; b.className = "sw"; b.dataset.c = c; b.style.background = c; b.setAttribute("aria-label", "Colour " + c);
+      b.addEventListener("click", () => set("color", c)); $("#color").before(b);
+    }
+    const first = ["head", "body"].find(k => FONTS[k]) || "system";
+    S = { source: C.sources[0].file, time: 0, headline: "", font: first, size: 120, color: colours[0] || "#FFFFFF",
+          y: typeof C.titleY === "number" ? C.titleY : 420, style: "shadow", guides: { tall: false, square: false } };
+    note = failed.length ? `Couldn't load the ${failed.join(", ")} font, so it uses system sans. ` : "";
+    if (C.settings) {
+      const saved = C.settings;
+      if (!C.sources.some(s => s.file === saved.source)) { note += `${saved.source} isn't in this reel any more, so I opened ${S.source}. `; saved.source = S.source; }
+      if (!FONTS[saved.font]) saved.font = first;
+      S = { ...S, ...saved };
+    }
+    sync(); $("#source").value = S.source; $("#controls").hidden = false;
+    loadSource(S.source, S.time);
+  } catch (e) { say("The studio couldn't load (" + e.message + "). Is it still running?", true); }
+})();
+</script>
+</html>

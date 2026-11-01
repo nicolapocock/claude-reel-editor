@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build the reel from edit.json and render it. Logs how long each part took to <reel>/timings.log.
 # Usage: render.sh <reel-folder> [--capcut] [--final]
-# Gentle by default: 2 Chrome workers at low priority, 1080p preview. --final renders at the brand resolution (4K).
+# Gentle by default: 2 Chrome workers at low priority, 1080p preview. --final renders at the brand resolution (1080p by default).
 set -euo pipefail
 REEL="$(cd "$1" && pwd)"; shift
 FINAL=0; ARGS=(); for a in "$@"; do [ "$a" = "--final" ] && FINAL=1 || ARGS+=("$a"); done

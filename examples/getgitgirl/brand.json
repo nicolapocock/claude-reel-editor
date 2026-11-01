@@ -1,8 +1,8 @@
 {
   "name": "getgitgirl",
   "resolution": [
-    2160,
-    3840
+    1080,
+    1920
   ],
   "pacing": "tight",
   "graphics": "busy",

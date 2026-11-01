@@ -30,7 +30,7 @@ Runs once, before the first edit. Output: `~/reels/brand.md` (for people and for
 10. **Your usual call to action.** e.g. "comment GUIDE and I'll send it", "follow for part 2". Always at the end?
 11. **Where do you post?** Instagram / TikTok / YouTube Shorts / all.
 12. **CapCut.** "Do you want an editable CapCut version too, so you can tweak captions and sounds yourself?" If yes, explain plainly: it needs a free CapCut account, and the connector currently doesn't work from the United States, and the CapCut app is not available in India. If they're in either place, set `"capcut": false` and reassure them the MP4 route gives the same finished reel.
-13. **Video quality.** 1080p (default, works on any computer) or 4K (sharper, needs ~35 GB free disk and a recent Mac).
+13. **Video quality.** 1080p (default: the most Instagram and TikTok show, and works on any computer) or 4K (only worth it for YouTube Shorts and clips filmed in 4K; renders much slower and needs ~35 GB free disk and a recent Mac).
 
 ## brand.md - write it in this shape
 
@@ -97,10 +97,10 @@ Runs once, before the first edit. Output: `~/reels/brand.md` (for people and for
 }
 ```
 
-- `captions.mode`: `word` (one word at a time) or `phrase` (2-4 words). `y` is the caption's distance from the top on a 1920-tall frame (1250 = mid-chest).
-- `fonts`: download the font files into `~/reels/fonts/` (Google Fonts are free: fetch the family's .ttf files from https://fonts.google.com or the google/fonts GitHub repo). No file = a clean system font is used instead.
+- `captions.mode`: `word` (one word at a time) or `phrase` (2-4 words). `y` is the caption's distance from the top on a 1920-tall frame (1250 = mid-chest). `case`: `"lower"` makes captions all lowercase; any other value keeps the casing as spoken.
+- `fonts`: download the font files into `~/reels/fonts/` (Google Fonts are free: fetch the family's .ttf files from https://fonts.google.com or the google/fonts GitHub repo). No file = a clean system font is used instead. `accent` is the font for accent words: for a plain look, set it to the same file as `head` (or delete it).
 
-- `resolution`: `[2160, 3840]` for 4K.
+- `resolution`: `[1080, 1920]` (default) or `[2160, 3840]` for 4K.
 - `capcut_font`: a CapCut font URI (`vimo://...`), filled in later - see capcut.md.
 - `grade`: optional ffmpeg colour filter string; leave `null` unless they ask for a look.
 - `deliver_dir`: on Windows/Linux use `~/Videos/Reels`. Never a cloud-synced folder (Desktop on iCloud, OneDrive) - big video files make it struggle.

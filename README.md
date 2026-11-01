@@ -53,7 +53,7 @@ bash ~/.claude/skills/reel-editor/scripts/doctor.sh
    - fix caption wording, pick the highlight words, merge captions
    - hear the sound clean-up and see the colour grade before and after
 5. hit **build preview**, tell claude "build preview", and watch the draft (about 4 minutes)
-6. leave notes at exact moments in the draft, then say "final" for the full-quality version at the resolution you picked in setup (and a capcut link, if you turned that on). 4K only looks sharper if you filmed in 4K, a 1080p clip doesn't gain detail
+6. leave notes at exact moments in the draft, then say "final" for the full-quality version (and a capcut link, if you turned that on). reels come out at 1080x1920, the biggest size instagram shows. you can pick 4K in setup instead (youtube shorts shows it), but it renders a lot slower and only looks sharper if you filmed in 4K
 
 nothing renders until you've approved it, so your laptop isn't rendering versions you don't want.
 

@@ -43,8 +43,9 @@ h1{font-family:var(--f-display);font-size:44px;line-height:1;margin:0;color:var(
 .lede{margin:0 0 10px;color:var(--muted);font-size:15px;max-width:66ch}
 .tally{font:500 13px var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums;margin-bottom:10px;display:flex;gap:6px 14px;flex-wrap:wrap}
 .tally b{color:var(--ink)}
-button.b{font:inherit;font-weight:700;font-size:14px;border-radius:999px;padding:7px 14px;border:2px solid var(--pink);background:var(--surface);color:var(--ink);cursor:pointer}
-button.b.primary{background:var(--pink);color:#141414}
+button.b,a.b{font:inherit;font-weight:700;font-size:14px;border-radius:999px;padding:7px 14px;border:2px solid var(--pink);background:var(--surface);color:var(--ink);cursor:pointer}
+a.b{display:inline-block;text-decoration:none}
+button.b.primary,a.b.primary{background:var(--pink);color:#141414}
 button.b.quiet{border-color:var(--line);font-weight:600}
 button.b:disabled{opacity:.45;cursor:default}
 button:focus-visible,.w:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
@@ -116,10 +117,12 @@ h2{font-size:18px;margin:18px 0 8px}
 .rev{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
 .notes{display:flex;flex-direction:column;gap:6px;margin-top:20px}
 .notes label{font-weight:700}
+.notes[hidden]{display:none}
 details{margin-top:14px;border:2px solid var(--line);border-radius:12px;padding:8px 12px}
 summary{cursor:pointer;font-weight:700}
 .empty{padding:20px;border:2px dashed var(--line);border-radius:16px;color:var(--muted)}
 .confirm{display:inline-flex;gap:6px;align-items:center;font-size:14px}
+code{font:500 13px var(--f-mono);background:var(--pink-soft);border-radius:6px;padding:1px 5px;word-break:break-all}
 </style>
 
 <div class="wrap">
@@ -151,6 +154,7 @@ summary{cursor:pointer;font-weight:700}
       <button class="tab" role="tab" data-tab="captions">Captions <span class="dot" hidden></span></button>
       <button class="tab" role="tab" data-tab="sound">Sound &amp; colour <span class="dot" hidden></span></button>
       <button class="tab" role="tab" data-tab="preview">Preview</button>
+      <button class="tab" role="tab" data-tab="cover">Cover</button>
     </div>
 
     <section data-p="cuts">
@@ -185,12 +189,17 @@ summary{cursor:pointer;font-weight:700}
     </section>
 
     <section data-p="preview" hidden>
-      <p class="lede">Build preview renders a draft from your current decisions (about 3 minutes). Watch it, then add notes at exact moments before the final 4K export.</p>
+      <p class="lede">Build preview renders a draft from your current decisions (about 3 minutes). Watch it, then add notes at exact moments before the final export.</p>
       <div class="state" id="bstate">No preview built yet.</div>
       <div class="ctl"><button class="b primary" id="build" type="button">Build preview</button></div>
       <h2>Notes on the draft</h2>
       <div class="ctl"><input type="text" id="revtext" placeholder="What to change at this moment"><button class="b" id="revadd" type="button">Add note at current time</button></div>
       <div id="revs"></div>
+    </section>
+
+    <section data-p="cover" hidden>
+      <p class="lede">Make this reel's cover: pick the frame, add a headline in your brand fonts, and download PNGs for the reel, the 3:4 profile grid and a square. The thumbnail studio runs on your computer, so your full-quality footage never leaves it.</p>
+      <div id="coverbox"></div>
     </section>
 
     <div class="notes" id="notesbox">
@@ -249,8 +258,8 @@ function showTab(t) {
   tab = t;
   $$(".tab").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === t));
   $$("section[data-p]").forEach(s => s.hidden = s.dataset.p !== t);
-  $("#notetab").textContent = { cuts: "cuts", graphics: "graphics", captions: "captions", sound: "sound and colour", preview: "preview" }[t];
-  $("#notes").value = S.notes[t] || ""; $("#resetbox").hidden = t === "preview";
+  $("#notetab").textContent = { cuts: "cuts", graphics: "graphics", captions: "captions", sound: "sound and colour", preview: "preview", cover: "cover" }[t];
+  $("#notes").value = S.notes[t] || ""; $("#resetbox").hidden = t === "preview"; $("#notesbox").hidden = t === "cover";
   stopPlay();
   if (t === "preview") { if (B?.url && v.getAttribute("src") !== B.url) { v.setAttribute("src", B.url); v.load(); } $("#rough").hidden = $("#back5").hidden = $("#fwd5").hidden = true; $(".scrub").hidden = true; v.controls = true; }
   else { if (v.getAttribute("src") !== R.srcUrl) { v.setAttribute("src", R.srcUrl); v.load(); } $("#rough").hidden = $("#back5").hidden = $("#fwd5").hidden = false; $(".scrub").hidden = false; v.controls = false; }
@@ -567,8 +576,22 @@ $("#revadd").addEventListener("click", () => {
   mutate(() => { S.revisions.push({ t: +v.currentTime.toFixed(2), text, hash: B.hash }); S.revisions.sort((a, b) => a.t - b.t); }); $("#revtext").value = "";
 });
 
+// ---------- 6. cover: a link to the thumbnail studio on their own computer ----------
+function renderCover() {
+  const box = $("#coverbox"); box.textContent = "";
+  const url = /^http:\/\/(127\.0\.0\.1|localhost):\d+\//.test(R.thumbnailUrl || "") ? R.thumbnailUrl : null;
+  const para = (...parts) => { const p = document.createElement("p"); p.className = "lede"; p.append(...parts); box.appendChild(p); return p; };
+  const code = t => Object.assign(document.createElement("code"), { textContent: t });
+  if (!url) { para('Ask Claude to "open my thumbnail studio" and the link appears here.'); return; }
+  const a = Object.assign(document.createElement("a"), { className: "b primary", href: url, target: "_blank", rel: "noopener", textContent: "Open thumbnail studio" });
+  box.appendChild(Object.assign(document.createElement("div"), { className: "ctl" })).appendChild(a);
+  para("It opens in a new tab at ", code(url), ". If the button does nothing, copy that address into your browser.");
+  para("Says it can't connect? The studio stops when your computer restarts. Ask Claude to \"open my thumbnail studio\"",
+    ...(R.thumbnailCmd ? [", or paste this into Terminal: ", code(R.thumbnailCmd)] : []), ". Your cover settings are saved with the reel, so it opens how you left it.");
+}
+
 function renderAll() {
-  renderCuts(); renderGraphics(); renderCaptions(); renderSound(); renderPreview();
+  renderCuts(); renderGraphics(); renderCaptions(); renderSound(); renderPreview(); renderCover();
   const sent = { cuts: S.cut != null, graphics: Object.keys(S.board).length, captions: S.captions != null, sound: Object.keys(S.sfxOff).length };
   $$(".tab").forEach(b => { const d = b.querySelector(".dot"); if (d) d.hidden = !sent[b.dataset.tab]; });
 }
@@ -601,7 +624,7 @@ function renderAll() {
     recompute();
     $("#reelname").textContent = `${R.title} · raw ${fmt(R.srcDur)} → reel ${fmt(P.cutDur)}`; setPos(0);
     $("#brand").value = S.brandRequest || "";
-    renderAll(); showTab(["cuts", "graphics", "captions", "sound", "preview"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "cuts");
+    renderAll(); showTab(["cuts", "graphics", "captions", "sound", "preview", "cover"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "cuts");
     pill(rv.exists ? "Saved decisions loaded" : "Ready");
   } catch (e) { pill("Couldn't load the reel (" + (e?.code || "error") + "). Reload to try again.", true); }
 })();
