@@ -22,7 +22,10 @@ fi
 [ -s "$S/../engine/gsap.min.js" ] || bash "$S/setup_engine.sh"
 stamp "build:start"; python3 "$S/build_reel.py" "$REEL" ${ARGS[@]+"${ARGS[@]}"}; stamp "build:end"
 stamp "render:start"
-nice -n 15 npx -y hyperframes@0.8.145 render "$REEL/proj" --workers "$WORKERS" -o "$REEL/final.mp4" --resolution "$RES" --quality delivery --quiet
+# iPhone clips are HLG/bt2020. Rendering them as HDR writes ~12 GB of raw frames, takes 3x
+# longer, drops the HTML overlay, and Instagram wants SDR anyway. REEL_HDR=1 to opt back in.
+SDRFLAG=(--sdr); [ -n "${REEL_HDR:-}" ] && SDRFLAG=()
+nice -n 15 npx -y hyperframes@0.8.145 render "$REEL/proj" --workers "$WORKERS" -o "$REEL/final.mp4" --resolution "$RES" --quality delivery "${SDRFLAG[@]}" --quiet
 stamp "render:end"
 # Final mix. Optional music bed (brand.json "music": path) sits ~18 dB under the voice and ducks further while she talks.
 # Then bring the whole mix to -14 LUFS (video copied, not re-encoded).
