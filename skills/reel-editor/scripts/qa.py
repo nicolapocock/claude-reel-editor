@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """QA gate for a finished reel. Checks size, length, loudness, and (if expected.txt exists) that no words were lost.
 Usage: python3 qa.py <reel-folder> [video]     default video: final.mp4. Exit code 1 if anything fails."""
-import difflib, json, os, re, subprocess, sys
+import difflib, json, os, re, shutil, subprocess, sys
 from pathlib import Path
+
+def _exe(n):
+    """Windows: npx and node are .CMD/.EXE, and CreateProcess needs the resolved path."""
+    return shutil.which(n) or n
 
 reel = Path(sys.argv[1]).expanduser()
 video = reel / (sys.argv[2] if len(sys.argv) > 2 else "final.mp4")
@@ -33,8 +37,8 @@ if not -15 <= lufs <= -12.5: fails.append("loudness")
 exp = reel / "expected.txt"
 if exp.exists():
     tok = lambda s: re.sub(r"[^a-z0-9' ]", " ", s.lower()).split()
-    subprocess.run(["npx", "-y", "hyperframes", "transcribe", str(video), "-d", str(reel / "qa_transcript"),
-                    "--json", "--model", "small.en"], capture_output=True)
+    subprocess.run([_exe("npx"), "-y", "hyperframes", "transcribe", str(video), "-d", str(reel / "qa_transcript"),
+                    "--json"], capture_output=True)
     heard = [t for wd in json.load(open(reel / "qa_transcript/transcript.json")) for t in tok(wd["text"])]
     expected = tok(exp.read_text())
     ratio = difflib.SequenceMatcher(None, expected, heard, autojunk=False).ratio()

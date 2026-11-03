@@ -20,6 +20,13 @@ if os.environ.get("REEL_PREVIEW"): w, h = 1080, 1920          # previews cut at 
 grade = brand.get("grade")
 FADE = 0.012  # tiny audio fades at every join so cuts never click
 
+# ffmpeg 8 removed -filter_complex_script. 7.1+ reads any option from a file as -/<option>,
+# so ask this ffmpeg which it speaks rather than parsing its version string.
+FILTER_FILE_OPT = ("-filter_complex_script"
+                   if "filter_complex_script" in subprocess.run(["ffmpeg", "-hide_banner", "-h", "full"],
+                                                                capture_output=True, text=True).stdout
+                   else "-/filter_complex")
+
 vp, ap = [], []
 for k, (a, b) in enumerate(spans):
     vp.append(f"[0:v]trim=start={a}:end={b},setpts=PTS-STARTPTS[v{k}]")
@@ -43,7 +50,7 @@ if kept / speed > brand.get("max_seconds", 60):
     print(f"warning: longer than {brand.get('max_seconds', 60)}s - suggest more cuts")
 
 subprocess.run(["nice", "-n", "15", "ffmpeg", "-y", "-v", "error", "-stats", "-i", str(src), "-i", str(audio),
-                "-filter_complex_script", str(script), "-map", "[vout]", "-map", "[aout]",
+                FILTER_FILE_OPT, str(script), "-map", "[vout]", "-map", "[aout]",
                 *((["-c:v", "h264_videotoolbox", "-b:v", "12M"] if sys.platform == "darwin" else ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]) if os.environ.get("REEL_PREVIEW") else ["-c:v", "libx264", "-preset", "medium", "-crf", "16"]), "-pix_fmt", "yuv420p",
                 "-c:a", "aac", "-b:a", "256k", "-movflags", "+faststart", str(reel / "master.mp4")], check=True)
 print(reel / "master.mp4")
