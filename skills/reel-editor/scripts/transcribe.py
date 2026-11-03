@@ -3,8 +3,12 @@
 else the free local Whisper via HyperFrames. Writes a flat word list: [{"text","start","end"}, ...].
 Usage: python3 transcribe.py <video-or-audio> <out.json>
 Key: ELEVENLABS_API_KEY in the environment or in ~/.config/reels/.env (never pasted into chat)."""
-import json, os, subprocess, sys, tempfile, urllib.error, urllib.request, uuid
+import json, os, shutil, subprocess, sys, tempfile, urllib.error, urllib.request, uuid
 from pathlib import Path
+
+def _exe(n):
+    """Windows: npx and node are .CMD/.EXE, and CreateProcess needs the resolved path."""
+    return shutil.which(n) or n
 
 src, out = Path(sys.argv[1]).expanduser(), Path(sys.argv[2]).expanduser()
 
@@ -46,7 +50,7 @@ if k:
     print(f"transcribed with ElevenLabs {model}: {len(words)} words")
 else:
     d = out.parent / (out.stem + "_whisper")
-    subprocess.run(["npx", "-y", "hyperframes", "transcribe", str(src), "-d", str(d), "--json", "--model", "small.en"], capture_output=True, check=True)
+    subprocess.run([_exe("npx"), "-y", "hyperframes", "transcribe", str(src), "-d", str(d), "--json"], capture_output=True, check=True)
     words = json.load(open(d / "transcript.json"))
     print(f"transcribed with local Whisper (no ElevenLabs key): {len(words)} words - timing can drift ~0.3 s")
 json.dump(words, open(out, "w"))

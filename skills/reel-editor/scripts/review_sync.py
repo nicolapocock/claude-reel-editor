@@ -12,6 +12,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pacing import pacing
 
+def _exe(n):
+    """Windows: npx and node are .CMD/.EXE, and CreateProcess needs the resolved path."""
+    return shutil.which(n) or n
+
 HERE = Path(__file__).resolve().parent
 CORE = HERE.parent / "review" / "core.js"
 HOME = Path(os.environ.get("REELS_HOME", "~/reels")).expanduser()
@@ -26,7 +30,7 @@ def node(reel_json, decisions):
     js = f"""const C=require({json.dumps(str(CORE))});const I=JSON.parse(require("fs").readFileSync(0,"utf8"));const R=I.r,D=I.d;
 const P=C.plan(R,D);process.stdout.write(JSON.stringify({{spans:P.spans,cutDur:P.cutDur,pauses:P.pauses,
 captions:C.captions(R,D,P),graphics:C.graphics(R,D,P),hash:C.hash(D)}}));"""
-    return json.loads(subprocess.run(["node", "-e", js], input=json.dumps({"r": reel_json, "d": decisions}),
+    return json.loads(subprocess.run([_exe("node"), "-e", js], input=json.dumps({"r": reel_json, "d": decisions}),
                                      capture_output=True, text=True, check=True).stdout)
 
 def export(reel, proposal, out):
