@@ -10,6 +10,10 @@ air (50-150 ms) so words never clip."""
 import json, os, re, shutil, subprocess, sys
 from pathlib import Path
 
+def _exe(n):
+    """Windows: npx and node are .CMD/.EXE, and CreateProcess needs the resolved path."""
+    return shutil.which(n) or n
+
 reel = Path(sys.argv[1]).expanduser()
 DETECT = "--detect" in sys.argv[2:]
 edl = {} if DETECT else json.load(open(reel / "edl.json"))
@@ -20,40 +24,68 @@ P_ = pacing(json.load(open(Path(os.environ.get("REELS_HOME", "~/reels")).expandu
 PAD, MIN_PAUSE = P_["air"], P_["pause_min"]
 FILLERS = set(P_["fillers"])
 
-# 1. fillers, via Whisper with a filler-heavy prompt
+# 1. fillers. Preferred source is the step-1 transcript: ElevenLabs Scribe and Parakeet both write
+# "um"/"uh" down, with word timings accurate enough to cut on. Whisper is only the fallback - it
+# hides fillers unless prompted for them, and its -oj segment offsets cover just the front of one
+# (measured here: "um" reported 0.44-0.96 where it actually ran 0.80-1.60), so cutting on those
+# offsets removes the start of the filler and leaves its tail in the edit.
 cuts = []
+found = False
+
+def filler_cuts(items, get):
+    """Cut spans for every filler in a word list. `get` maps one item -> (text, start, end)."""
+    out = []
+    for k, it in enumerate(items):
+        txt, a, b = get(it)
+        if re.sub(r"[^a-z]", "", txt.lower()) not in FILLERS:
+            continue
+        nxt = get(items[k + 1])[1] if k + 1 < len(items) else b
+        out.append((a - 0.02, max(b, min(nxt, a + 1.0)) - 0.02))   # never past the next word
+    return out
+
+tx = reel / "transcript.json"
+if tx.exists():
+    words = json.load(open(tx))
+    cuts = filler_cuts(words, lambda w: (w["text"], w["start"], w["end"]))
+    found = True
+    print(f"fillers found in transcript.json: {len(cuts)}", [round(a, 1) for a, _ in cuts])
+    # review_sync.py reads fillers.json to mark these words removable (grey) on the review
+    # page. Whisper used to write it; on the transcript path we write it ourselves, in the
+    # same shape, or the page shows no fillers even though we found them.
+    json.dump({"transcription": [
+        {"text": w["text"], "offsets": {"from": int(w["start"] * 1000), "to": int(w["end"] * 1000)}}
+        for w in words if re.sub(r"[^a-z]", "", w["text"].lower()) in FILLERS]},
+        open(reel / "fillers.json", "w"))
+
 def find_whisper():
-    cli = shutil.which("whisper-cli") or next((str(p) for p in Path("~/.cache/hyperframes/whisper").expanduser().rglob("whisper-cli")), None)
+    cli = shutil.which("whisper-cli") or next((str(p) for p in Path("~/.cache/hyperframes/whisper").expanduser().rglob("whisper-cli*")), None)
     model = next(iter(sorted(Path("~/.cache/hyperframes/whisper/models").expanduser().glob("ggml-small*.bin"))), None)
     return cli, model
-cli, model = find_whisper()
-if not (cli and model):   # fresh install (or the ElevenLabs route): HyperFrames' transcriber downloads whisper-cli + the model
-    print("local Whisper not installed yet: installing it (one time, a few minutes)")
-    try:
-        subprocess.run(["npx", "-y", "hyperframes", "transcribe", str(voice), "-d", str(reel / "_whisper_setup"), "--json", "--model", "small.en"],
-                       capture_output=True)
-    except OSError as e:
-        print("couldn't install Whisper:", e)
-    shutil.rmtree(reel / "_whisper_setup", ignore_errors=True)
+
+if not found:
     cli, model = find_whisper()
-found = False
-if cli and model:
-    wav16 = reel / "v16.wav"
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(voice), "-ar", "16000", "-ac", "1", str(wav16)], check=True)
-    r = subprocess.run([cli, "-m", str(model), "-f", str(wav16), "--prompt", "Um, uh, so, like, um, I mean, uh, you know.",
-                        "-ml", "1", "-sow", "-oj", "-of", str(reel / "fillers")], capture_output=True, text=True)
-    if r.returncode == 0 and (reel / "fillers.json").exists():
-        found = True
-        toks = [(t["text"].strip(), t["offsets"]["from"] / 1000, t["offsets"]["to"] / 1000)
-                for t in json.load(open(reel / "fillers.json"))["transcription"] if t["text"].strip()]
-        for k, (txt, a, b) in enumerate(toks):
-            if re.sub(r"[^a-z]", "", txt.lower()) in FILLERS:
-                nxt = toks[k + 1][1] if k + 1 < len(toks) else b
-                cuts.append((a - 0.02, max(b, min(nxt, a + 0.7)) - 0.02))
-        print(f"fillers found: {len(cuts)}", [round(a, 1) for a, _ in cuts])
-    else:
-        (reel / "fillers.json").unlink(missing_ok=True)   # never leave a stale or half-written file behind
-        print("whisper-cli failed:", (r.stderr or "").strip()[-300:])
+    if not (cli and model):   # no transcript and no whisper: let HyperFrames' transcriber fetch what it can
+        print("no transcript.json and local Whisper not installed: trying to install it (one time, a few minutes)")
+        try:
+            subprocess.run([_exe("npx"), "-y", "hyperframes", "transcribe", str(voice), "-d", str(reel / "_whisper_setup"), "--json"],
+                           capture_output=True)
+        except OSError as e:
+            print("couldn't install Whisper:", e)
+        shutil.rmtree(reel / "_whisper_setup", ignore_errors=True)
+        cli, model = find_whisper()
+    if cli and model:
+        wav16 = reel / "v16.wav"
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(voice), "-ar", "16000", "-ac", "1", str(wav16)], check=True)
+        r = subprocess.run([cli, "-m", str(model), "-f", str(wav16), "--prompt", "Um, uh, so, like, um, I mean, uh, you know.",
+                            "-ml", "1", "-sow", "-oj", "-of", str(reel / "fillers")], capture_output=True, text=True)
+        if r.returncode == 0 and (reel / "fillers.json").exists():
+            found = True
+            toks = [t for t in json.load(open(reel / "fillers.json"))["transcription"] if t["text"].strip()]
+            cuts = filler_cuts(toks, lambda t: (t["text"].strip(), t["offsets"]["from"] / 1000, t["offsets"]["to"] / 1000))
+            print(f"fillers found by whisper (timings are coarse): {len(cuts)}", [round(a, 1) for a, _ in cuts])
+        else:
+            (reel / "fillers.json").unlink(missing_ok=True)   # never leave a stale or half-written file behind
+            print("whisper-cli failed:", (r.stderr or "").strip()[-300:])
 if not found:
     print("FILLERS NOT DETECTED: um/uh won't be cut automatically. Tell the person, and offer to cut them by hand on the review.")
 if DETECT: sys.exit(0 if found else 3)
